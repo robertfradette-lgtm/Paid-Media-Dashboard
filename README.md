@@ -12,7 +12,7 @@
 1. Put your performance data in **`backend/data/performance.csv`**.
 2. Use the exact column headers:  
    `date,platform,campaign,ad,objective,spend,impressions,clicks,conversions,revenue`
-3. See **`backend/data/performance.csv.example`** and **`backend/DATA_README.md`** for format and platform values (`google`, `meta`, `tiktok`, `dsp`).
+3. See **`backend/data/performance.csv.example`** and **`backend/DATA_README.md`** for format and platform values (`google`, `meta`, `tiktok`, `olv`, `display`).
 
 ### 2. Start the backend
 

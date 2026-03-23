@@ -19,7 +19,7 @@ Templates and field definitions: **`../templates/CSV_AND_EXCEL_GUIDE.md`**
 
 1. Export performance from your ad platforms (Google, Meta, TikTok, DSP) with these columns:
    - `date` – YYYY-MM-DD
-   - `platform` – google | meta | tiktok | dsp
+   - `platform` – google | meta | tiktok | olv | display
    - `market` – (optional) cleveland | columbus | cincinnati | charleston | dayton | toledo | indianapolis | pittsburgh (FY27 funded/control markets)
    - `campaign` – campaign name
    - `ad` – ad/creative name
@@ -43,7 +43,7 @@ To enable the Pacing dashboard (spend vs plan with variance flags):
 1. Create `data/plan.csv` with columns: `month`, `market`, `platform`, `plan_spend`
    - `month` – YYYY-MM (e.g. 2026-02)
    - `market` – cleveland | columbus | cincinnati | charleston | dayton | toledo | all
-   - `platform` – google | meta | tiktok | dsp
+   - `platform` – google | meta | tiktok | olv | display
    - `plan_spend` – planned spend (number)
 
 2. See `data/plan.csv.example` for format.
@@ -57,14 +57,17 @@ There is no built-in DSP API. You can link a DSP in two ways:
 **A. CSV export (recommended for bulk data)**
 
 1. In your DSP (e.g. The Trade Desk, MediaMath, DV360, etc.), export performance report with date, campaign, line item or creative, spend, impressions, clicks, conversions, and revenue (or equivalent fields).
-2. Map columns to the dashboard format above. Use **platform** = `dsp` for every row.
+2. Map columns to the dashboard format above:
+   - Use **`platform = olv`** for OLV rows
+   - Use **`platform = display`** for Display rows
+   - For backward compatibility, if you still export **`platform = dsp`**, the backend will infer `olv` vs `display` from the `campaign`/`ad` text containing “OLV” or “Display”.
 3. Save as `backend/data/performance.csv` (or append DSP rows to an existing CSV that has the same header).
 4. Restart the backend. DSP rows will appear with Google/TikTok API data and manual entries.
 
 **B. Manual entry**
 
 1. In the dashboard, use **Add manual entry**.
-2. Choose **Platform**: “DSP / Display & OLV”.
+2. Choose **Platform**: “DSP — OLV” or “DSP — Display”.
 3. Enter date, campaign, ad name, objective, spend, impressions, clicks, conversions, revenue.
 4. Submit. The entry is stored and shown in the dashboard (no backend CSV needed).
 

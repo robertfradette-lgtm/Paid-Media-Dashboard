@@ -11,7 +11,7 @@ The importer **maps common export headers** to the fields below (e.g. **Channel*
 | `date` | `YYYY-MM-DD` (daily reporting date) OR use `flight_start` + `flight_end` below |
 | `flight_start` | `YYYY-MM-DD` (flight start date) |
 | `flight_end` | `YYYY-MM-DD` (flight end date) |
-| `platform` | `google`, `meta`, `tiktok`, or `dsp` (lowercase) |
+| `platform` | `google`, `meta`, `tiktok`, `olv`, or `display` (lowercase) |
 | `market` | e.g. `cleveland`, `columbus` (lowercase; optional but used for filters) |
 | `campaign` | Free text |
 | `ad` | Free text |
@@ -29,7 +29,7 @@ The importer **maps common export headers** to the fields below (e.g. **Channel*
 **Columns:** `month`, `market`, `platform`, `plan_spend`  
 - `month`: `YYYY-MM`  
 - `market`: DMA/market slug or `all` for a default  
-- `platform`: `google`, `meta`, `tiktok`, `dsp`  
+- `platform`: `google`, `meta`, `tiktok`, `olv`, or `display`  
 
 **Template file:** `Paid_Media_Plan_Template.csv`
 

@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bob Evans Paid Media Performance</title>
-    <link rel="stylesheet" href="styles.css?v=10" />
+    <link rel="stylesheet" href="styles.css?v=11" />
   </head>
   <body>
     <header class="app-header">
@@ -93,7 +93,8 @@
               <label class="form-field">
                 <span class="form-label">Platform</span>
                 <select name="platform" id="manualPlatform">
-                  <option value="dsp">DSP / Display & OLV</option>
+                  <option value="olv">DSP — OLV</option>
+                  <option value="display">DSP — Display</option>
                   <option value="google">Google Ads</option>
                   <option value="meta">Meta (FB/IG)</option>
                   <option value="tiktok">TikTok Ads</option>
@@ -189,8 +190,12 @@
               <span>TikTok Ads</span>
             </label>
             <label class="checkbox">
-              <input type="checkbox" value="dsp" checked />
-              <span>DSP (OLV & Display)</span>
+              <input type="checkbox" value="olv" checked />
+              <span>DSP — OLV</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" value="display" checked />
+              <span>DSP — Display</span>
             </label>
           </div>
           <div class="filter-group">
@@ -508,7 +513,7 @@
       </div>
     </div>
 
-    <script src="script.js?v=10"></script>
+    <script src="script.js?v=11"></script>
   </body>
   </html>
 

@@ -6,23 +6,23 @@ const MOCK_ROWS = [
   ["2026-02-05", "google", "Search | Family Dinner | US", "Dinner KW Broad", "conversions", 520.34, 78000, 4600, 210, 4100],
   ["2026-02-05", "meta", "Paid Social | Millennial Parents | Video", "Hero Video 15s", "conversions", 430.12, 92000, 3800, 145, 2900],
   ["2026-02-05", "tiktok", "TikTok | ParentTok | Family Meals", "POV After Practice", "conversions", 260.75, 64000, 3200, 110, 2200],
-  ["2026-02-05", "dsp", "OLV | CTV | Weekend Brunch", "CTV :30 Brunch", "awareness", 610.0, 180000, 900, 35, 0],
+  ["2026-02-05", "olv", "OLV | CTV | Weekend Brunch", "CTV :30 Brunch", "awareness", 610.0, 180000, 900, 35, 0],
   ["2026-02-06", "google", "Search | Family Dinner | US", "Dinner KW Broad", "conversions", 545.1, 80200, 4720, 218, 4250],
   ["2026-02-06", "meta", "Paid Social | Millennial Parents | Video", "Carousel Kid-friendly", "conversions", 390.85, 88000, 3600, 139, 2800],
   ["2026-02-06", "tiktok", "TikTok | ParentTok | Family Meals", "Budget Breakdown", "conversions", 275.9, 66000, 3330, 118, 2350],
-  ["2026-02-06", "dsp", "Display | Local Deals | OH", "300x250 Local Offers", "traffic", 310.5, 132000, 2100, 60, 600],
+  ["2026-02-06", "display", "Display | Local Deals | OH", "300x250 Local Offers", "traffic", 310.5, 132000, 2100, 60, 600],
   ["2026-02-07", "google", "Search | Weekend Brunch | US", "Brunch KW Exact", "conversions", 480.2, 71000, 4450, 205, 3950],
   ["2026-02-07", "meta", "Paid Social | Millennial Parents | Video", "UGC Family Brunch", "conversions", 415.33, 97000, 3950, 155, 3100],
   ["2026-02-07", "tiktok", "TikTok | Weekend Plans | Brunch", "What to do this weekend", "traffic", 230.4, 59000, 3100, 80, 900],
-  ["2026-02-07", "dsp", "OLV | CTV | Weekend Brunch", "CTV :15 Brunch", "awareness", 640.75, 190000, 950, 40, 0],
+  ["2026-02-07", "olv", "OLV | CTV | Weekend Brunch", "CTV :15 Brunch", "awareness", 640.75, 190000, 950, 40, 0],
   ["2026-02-08", "google", "Search | Family Dinner | US", "Dinner KW Phrase", "conversions", 505.25, 76500, 4525, 210, 4050],
   ["2026-02-08", "meta", "Paid Social | Millennial Parents | Static", "Kids Menu Static", "traffic", 320.5, 74000, 3300, 95, 950],
   ["2026-02-08", "tiktok", "TikTok | ParentTok | Family Meals", "Sunday Reset", "conversions", 245.0, 61000, 3150, 105, 2150],
-  ["2026-02-08", "dsp", "Display | Local Deals | OH", "160x600 Local Offers", "traffic", 295.9, 126000, 2050, 55, 550],
+  ["2026-02-08", "display", "Display | Local Deals | OH", "160x600 Local Offers", "traffic", 295.9, 126000, 2050, 55, 550],
   ["2026-02-09", "google", "Search | Family Dinner | US", "Dinner KW Broad", "conversions", 530.0, 79000, 4650, 215, 4200],
   ["2026-02-09", "meta", "Paid Social | Millennial Parents | Video", "Hero Video 15s", "conversions", 440.5, 98000, 3900, 150, 3000],
   ["2026-02-09", "tiktok", "TikTok | ParentTok | Family Meals", "POV After Practice", "conversions", 270.8, 65000, 3250, 112, 2250],
-  ["2026-02-09", "dsp", "OLV | CTV | Weekend Brunch", "CTV :30 Brunch", "awareness", 620.0, 185000, 920, 37, 0]
+  ["2026-02-09", "olv", "OLV | CTV | Weekend Brunch", "CTV :30 Brunch", "awareness", 620.0, 185000, 920, 37, 0]
 ];
 
 function parseRows(rows) {
@@ -838,6 +838,8 @@ function pillClassForPlatform(platform) {
   if (platform === "google") return "pill pill-google";
   if (platform === "meta") return "pill pill-meta";
   if (platform === "tiktok") return "pill pill-tiktok";
+  if (platform === "olv") return "pill pill-olv";
+  if (platform === "display") return "pill pill-display";
   if (platform === "dsp") return "pill pill-dsp";
   return "pill";
 }
