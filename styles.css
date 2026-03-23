@@ -23,7 +23,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 1.75rem;
+  padding: 0.55rem 0.85rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
   background: radial-gradient(circle at top left, #1f2937, #020617);
   border-bottom: 1px solid rgba(55, 65, 81, 0.9);
 }
@@ -31,12 +33,20 @@ body {
 .app-header-left {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.app-header-left h1 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .logo-circle {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ef4444, #f97316);
   display: flex;
@@ -49,22 +59,33 @@ body {
 }
 
 .subtitle {
-  margin: 0.1rem 0 0;
-  font-size: 0.8rem;
+  margin: 0.08rem 0 0;
+  font-size: 0.68rem;
   color: #9ca3af;
 }
 
 .app-header-right {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.3rem 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 100%;
 }
 
 .filter-inline {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-size: 0.8rem;
+  gap: 0.28rem;
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.app-header .select,
+.app-header input.select[type="date"] {
+  padding: 0.2rem 0.4rem;
+  font-size: 0.68rem;
+  border-radius: 0.35rem;
 }
 
 .select,
@@ -82,14 +103,16 @@ body {
 }
 
 .export-btn {
-  padding: 0.4rem 0.85rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   border: 1px solid rgba(75, 85, 99, 0.9);
   background: transparent;
   color: #e5e7eb;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 500;
   cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .export-btn:hover {
@@ -107,8 +130,8 @@ button.export-btn {
 }
 
 .export-btn--secondary {
-  opacity: 0.92;
-  font-size: 0.75rem;
+  opacity: 0.95;
+  font-size: 0.62rem;
 }
 
 .backend-status-bar {
@@ -169,12 +192,12 @@ button.export-btn {
 }
 
 .maintainer-btn {
-  padding: 0.4rem 0.85rem;
+  padding: 0.2rem 0.5rem;
   border-radius: 999px;
   border: 1px solid rgba(245, 158, 11, 0.65);
   background: linear-gradient(180deg, rgba(180, 83, 9, 0.55), rgba(120, 53, 15, 0.75));
   color: #fffbeb;
-  font-size: 0.8rem;
+  font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.03em;
   cursor: pointer;
@@ -1004,9 +1027,11 @@ tbody tr:hover {
   }
 
   .app-header {
-    flex-direction: column;
     align-items: flex-start;
-    gap: 0.4rem;
+  }
+
+  .app-header-right {
+    justify-content: flex-start;
   }
 
   .filters,
