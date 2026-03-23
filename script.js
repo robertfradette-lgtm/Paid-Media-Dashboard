@@ -1588,6 +1588,19 @@ async function initMaintainerGate() {
   const pwdInput = document.getElementById("maintainerPasswordInput");
   const pwdSubmit = document.getElementById("maintainerPasswordSubmit");
   const pwdErr = document.getElementById("maintainerPasswordError");
+  const manualPanel = document.querySelector(".manual-entry-panel");
+  const importBtn = document.getElementById("importCsvBtn");
+  const planBtn = document.getElementById("importPlanCsvBtn");
+  const importInput = document.getElementById("importCsvInput");
+  const planInput = document.getElementById("importPlanCsvInput");
+
+  function setWriteAccess(enabled) {
+    if (manualPanel) manualPanel.hidden = !enabled;
+    if (importBtn) importBtn.hidden = !enabled;
+    if (planBtn) planBtn.hidden = !enabled;
+    if (importInput) importInput.disabled = !enabled;
+    if (planInput) planInput.disabled = !enabled;
+  }
 
   const session = await fetchMaintainerSession();
   if (!session.configured) {
@@ -1595,6 +1608,7 @@ async function initMaintainerGate() {
     return;
   }
   dock?.removeAttribute("hidden");
+  setWriteAccess(!!session.devPanel);
 
   const { open: openNotes, close: closeNotes } = initDevNotesModal();
 
@@ -1651,6 +1665,7 @@ async function initMaintainerGate() {
       }
       closePasswordModal();
       openNotes();
+      setWriteAccess(true);
     } catch (err) {
       if (pwdErr) {
         pwdErr.textContent = err.message || "Network error — is the backend running?";

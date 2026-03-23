@@ -41,6 +41,19 @@ function devPanelCookieOk(req) {
   return readCookie(req, "paidMediaDevPanel") === "1";
 }
 
+function requireDevPanel(req, res, next) {
+  if (DEV_PANEL_TOKEN.length < 8) {
+    return res.status(503).json({
+      error: "Maintainer gate not configured on this server",
+      details: "Set DEV_PANEL_TOKEN in backend/.env (or Render environment variables).",
+    });
+  }
+  if (!devPanelCookieOk(req)) {
+    return res.status(403).json({ error: "Restricted. Maintainer access required." });
+  }
+  next();
+}
+
 // Reflect request origin so file:// / Live Preview / other ports can call the API when needed
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: "20mb" }));
@@ -783,6 +796,7 @@ app.get("/api/plan/template", (req, res) => {
 // Replace performance.csv — raw body (Buffer → UTF-8). Uses raw() so text/csv/plain always parse; avoids express.text type mismatches.
 app.post(
   "/api/performance/csv",
+  requireDevPanel,
   express.raw({ limit: "20mb", type: "*/*" }),
   (req, res) => {
   try {
@@ -853,7 +867,7 @@ app.post(
 });
 
 // Replace plan.csv for pacing (raw body)
-app.post("/api/plan/csv", express.raw({ limit: "5mb", type: "*/*" }), (req, res) => {
+app.post("/api/plan/csv", requireDevPanel, express.raw({ limit: "5mb", type: "*/*" }), (req, res) => {
   try {
     const text =
       Buffer.isBuffer(req.body) ? req.body.toString("utf8") : String(req.body || "");
@@ -890,7 +904,7 @@ app.post("/api/plan/csv", express.raw({ limit: "5mb", type: "*/*" }), (req, res)
   }
 });
 
-app.post("/api/performance/manual", (req, res) => {
+app.post("/api/performance/manual", requireDevPanel, (req, res) => {
   try {
     const body = req.body || {};
 
