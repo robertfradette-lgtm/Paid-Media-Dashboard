@@ -211,6 +211,193 @@ function filterData() {
   });
 }
 
+/** Same as filterData but ignores date (for period split). */
+function rowMatchesFiltersExceptDate(row) {
+  const { platforms, objective, search, campaignFilter, marketFilter } = getFilters();
+  if (!platforms.includes(row.platform)) return false;
+  if (objective !== "all" && row.objective !== objective) return false;
+  if (campaignFilter !== "all" && row.campaign !== campaignFilter) return false;
+  if (marketFilter === "funded" && !FUNDED_MARKETS.includes((row.market || "").toLowerCase())) return false;
+  if (marketFilter === "control" && !CONTROL_MARKETS.includes((row.market || "").toLowerCase())) return false;
+  if (
+    marketFilter !== "all" &&
+    marketFilter !== "funded" &&
+    marketFilter !== "control" &&
+    (row.market || "").toLowerCase() !== marketFilter
+  ) {
+    return false;
+  }
+  if (search) {
+    const combined = `${row.campaign} ${row.ad}`.toLowerCase();
+    if (!combined.includes(search)) return false;
+  }
+  return true;
+}
+
+function rowMatchesCurrentDateWindow(row, now) {
+  const { dateRange, customStart, customEnd } = getFilters();
+  const d = new Date(row.date);
+  if (dateRange === "custom") {
+    if (!customStart || !customEnd) return false;
+    const customStartDate = new Date(customStart);
+    const customEndDate = new Date(customEnd);
+    customEndDate.setHours(23, 59, 59, 999);
+    return d >= customStartDate && d <= customEndDate;
+  }
+  const n = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+  const diffDays = (now - d) / (1000 * 60 * 60 * 24);
+  // Match filterData: include rows with diffDays <= n (same as main KPIs / charts)
+  return diffDays <= n;
+}
+
+function rowMatchesPriorDateWindow(row, now) {
+  const { dateRange, customStart, customEnd } = getFilters();
+  const d = new Date(row.date);
+  if (dateRange === "custom") {
+    if (!customStart || !customEnd) return false;
+    const start = new Date(customStart);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(customEnd);
+    end.setHours(0, 0, 0, 0);
+    const spanDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    const priorEnd = new Date(start);
+    priorEnd.setDate(priorEnd.getDate() - 1);
+    priorEnd.setHours(23, 59, 59, 999);
+    const priorStart = new Date(priorEnd);
+    priorStart.setHours(0, 0, 0, 0);
+    priorStart.setDate(priorStart.getDate() - (spanDays - 1));
+    return d >= priorStart && d <= priorEnd;
+  }
+  const n = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+  const diffDays = (now - d) / (1000 * 60 * 60 * 24);
+  return diffDays > n && diffDays <= n * 2;
+}
+
+function getPeriodDescription(now) {
+  const { dateRange, customStart, customEnd } = getFilters();
+  const fmt = dt =>
+    dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  if (dateRange === "custom") {
+    if (!customStart || !customEnd) return "Select custom start and end dates in the header.";
+    const cs = new Date(customStart);
+    const ce = new Date(customEnd);
+    const start = new Date(cs);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(ce);
+    end.setHours(0, 0, 0, 0);
+    const spanDays = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    const priorEnd = new Date(start);
+    priorEnd.setDate(priorEnd.getDate() - 1);
+    const priorStart = new Date(priorEnd);
+    priorStart.setHours(0, 0, 0, 0);
+    priorStart.setDate(priorStart.getDate() - (spanDays - 1));
+    return `Current: ${fmt(cs)} – ${fmt(ce)} · Prior: ${fmt(priorStart)} – ${fmt(priorEnd)} (${spanDays} days each)`;
+  }
+  const n = dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90;
+  const curEnd = new Date(now);
+  const curStart = new Date(now);
+  curStart.setDate(curStart.getDate() - n);
+  const priorEnd = new Date(curStart);
+  priorEnd.setDate(priorEnd.getDate() - 1);
+  const priorStart = new Date(priorEnd);
+  priorStart.setDate(priorStart.getDate() - (n - 1));
+  return `Last ${n} days (${fmt(curStart)} – ${fmt(curEnd)}) vs prior ${n} days (${fmt(priorStart)} – ${fmt(priorEnd)})`;
+}
+
+function rowsForCurrentPeriod() {
+  const now = new Date();
+  return BASE_DATA.filter(row => rowMatchesFiltersExceptDate(row) && rowMatchesCurrentDateWindow(row, now));
+}
+
+function rowsForPriorPeriod() {
+  const now = new Date();
+  return BASE_DATA.filter(row => rowMatchesFiltersExceptDate(row) && rowMatchesPriorDateWindow(row, now));
+}
+
+function rollupMetrics(rows) {
+  const spend = sum(rows, "spend");
+  const impressions = sum(rows, "impressions");
+  const clicks = sum(rows, "clicks");
+  const conversions = sum(rows, "conversions");
+  const revenue = sum(rows, "revenue");
+  const cpa = conversions ? spend / conversions : 0;
+  const roas = spend ? revenue / spend : 0;
+  return { spend, impressions, clicks, conversions, revenue, cpa, roas };
+}
+
+function pctDelta(cur, prev) {
+  if (prev === 0 && cur === 0) return 0;
+  if (prev === 0) return null;
+  return ((cur - prev) / prev) * 100;
+}
+
+function formatKpiVsPrior(cur, prev) {
+  if (prev === 0 && cur > 0) return "vs prior: new";
+  if (prev === 0 && cur === 0) return "vs prior: —";
+  const p = pctDelta(cur, prev);
+  if (p === null) return "vs prior: —";
+  if (Math.abs(p) < 0.05) return "vs prior: flat";
+  const sign = p > 0 ? "+" : "";
+  return `vs prior: ${sign}${p.toFixed(1)}%`;
+}
+
+/** For strip: lower metric is better (CPA). */
+function deltaDisplay(cur, prev, inverseGood) {
+  if (prev === 0 && cur > 0) return { text: "vs prior: new", cls: "period-metric-delta--up" };
+  if (prev === 0 && cur === 0) return { text: "vs prior: —", cls: "period-metric-delta--flat" };
+  const p = pctDelta(cur, prev);
+  if (p === null) return { text: "vs prior: —", cls: "period-metric-delta--flat" };
+  if (Math.abs(p) < 0.05) return { text: "vs prior: flat", cls: "period-metric-delta--flat" };
+  const sign = p > 0 ? "+" : "";
+  const text = `vs prior: ${sign}${p.toFixed(1)}%`;
+  const good = inverseGood ? p < 0 : p > 0;
+  return {
+    text,
+    cls: good ? "period-metric-delta--up" : "period-metric-delta--down"
+  };
+}
+
+function renderPeriodSummaryStrip() {
+  const rangeEl = document.getElementById("periodSummaryRange");
+  const metricsEl = document.getElementById("periodSummaryMetrics");
+  if (!rangeEl || !metricsEl) return;
+
+  const now = new Date();
+  rangeEl.textContent = getPeriodDescription(now);
+
+  const current = rowsForCurrentPeriod();
+  const prior = rowsForPriorPeriod();
+  const c = rollupMetrics(current);
+  const p = rollupMetrics(prior);
+
+  const items = [
+    { label: "Spend", value: formatCurrency(c.spend), ...deltaDisplay(c.spend, p.spend, false) },
+    { label: "Conversions", value: formatNumber(Math.round(c.conversions)), ...deltaDisplay(c.conversions, p.conversions, false) },
+    {
+      label: "CPA",
+      value: formatCPA(c.spend, c.conversions),
+      ...deltaDisplay(c.cpa, p.cpa, true)
+    },
+    {
+      label: "ROAS",
+      value: formatROAS(c.revenue, c.spend),
+      ...deltaDisplay(c.roas, p.roas, false)
+    }
+  ];
+
+  metricsEl.innerHTML = "";
+  items.forEach(item => {
+    const wrap = document.createElement("div");
+    wrap.className = "period-metric";
+    wrap.innerHTML = `
+      <div class="period-metric-label">${item.label}</div>
+      <div class="period-metric-value">${item.value}</div>
+      <div class="period-metric-delta ${item.cls}">${item.text}</div>
+    `;
+    metricsEl.appendChild(wrap);
+  });
+}
+
 function populateCampaignFilter() {
   const select = document.getElementById("campaignFilter");
   const manualSelect = document.getElementById("manualCampaignSelect");
@@ -333,12 +520,17 @@ function formatROAS(revenue, spend) {
   return `${(revenue / spend).toFixed(2)}x`;
 }
 
-function renderKPIs(data) {
+function renderKPIs(data, priorRows) {
   const spend = sum(data, "spend");
   const imps = sum(data, "impressions");
   const clicks = sum(data, "clicks");
   const convs = sum(data, "conversions");
   const revenue = sum(data, "revenue");
+
+  const pSpend = sum(priorRows, "spend");
+  const pImps = sum(priorRows, "impressions");
+  const pClicks = sum(priorRows, "clicks");
+  const pConvs = sum(priorRows, "conversions");
 
   document.getElementById("kpiSpend").textContent = formatCurrency(spend);
   document.getElementById("kpiImpressions").textContent = formatNumber(imps);
@@ -349,11 +541,10 @@ function renderKPIs(data) {
   if (kpiCPAV) kpiCPAV.textContent = formatCPA(spend, convs);
   document.getElementById("kpiROAS").textContent = formatROAS(revenue, spend);
 
-  // For now, mock previous-period changes
-  document.getElementById("kpiSpendChange").textContent = "vs prev: +8%";
-  document.getElementById("kpiImpChange").textContent = "vs prev: +4%";
-  document.getElementById("kpiClickChange").textContent = "vs prev: +6%";
-  document.getElementById("kpiConvChange").textContent = "vs prev: +5%";
+  document.getElementById("kpiSpendChange").textContent = formatKpiVsPrior(spend, pSpend).replace("vs prior:", "vs prev:");
+  document.getElementById("kpiImpChange").textContent = formatKpiVsPrior(imps, pImps).replace("vs prior:", "vs prev:");
+  document.getElementById("kpiClickChange").textContent = formatKpiVsPrior(clicks, pClicks).replace("vs prior:", "vs prev:");
+  document.getElementById("kpiConvChange").textContent = formatKpiVsPrior(convs, pConvs).replace("vs prior:", "vs prev:");
 }
 
 function getFullDateRangeForChart() {
@@ -811,7 +1002,9 @@ function renderPacingTable() {
 
 function applyFiltersAndRender() {
   const filtered = filterData();
-  renderKPIs(filtered);
+  const priorRows = rowsForPriorPeriod();
+  renderPeriodSummaryStrip();
+  renderKPIs(filtered, priorRows);
   renderTimeseriesChart(filtered);
   renderPlatformChart(filtered);
   renderMarketChart(filtered);
@@ -833,6 +1026,11 @@ function initFilters() {
   document.getElementById("dateRange").addEventListener("change", () => {
     applyFiltersAndRender();
   });
+
+  const customStartEl = document.getElementById("customStart");
+  const customEndEl = document.getElementById("customEnd");
+  if (customStartEl) customStartEl.addEventListener("change", () => applyFiltersAndRender());
+  if (customEndEl) customEndEl.addEventListener("change", () => applyFiltersAndRender());
 
   // Calendar vs fiscal view toggle in the header
   const viewModeEl = document.getElementById("viewMode");
