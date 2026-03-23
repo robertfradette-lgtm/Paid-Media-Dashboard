@@ -1208,9 +1208,148 @@ function initManualEntry() {
   });
 }
 
+function escapeHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function getDateRangeLabel() {
+  const { dateRange, customStart, customEnd } = getFilters();
+  if (dateRange === "custom" && customStart && customEnd) {
+    return `Custom: ${customStart} → ${customEnd}`;
+  }
+  if (dateRange === "7d") return "Last 7 days";
+  if (dateRange === "30d") return "Last 30 days";
+  return "Last 90 days";
+}
+
+function topCampaignsBySpend(rows, limit = 10) {
+  const by = {};
+  rows.forEach(r => {
+    const k = r.campaign || "(unknown)";
+    if (!by[k]) by[k] = { spend: 0, conv: 0 };
+    by[k].spend += r.spend || 0;
+    by[k].conv += r.conversions || 0;
+  });
+  return Object.entries(by)
+    .map(([name, v]) => ({ name, spend: v.spend, conv: v.conv }))
+    .sort((a, b) => b.spend - a.spend)
+    .slice(0, limit);
+}
+
+function describeActiveFiltersForReport() {
+  const { platforms, objective, search, campaignFilter, marketFilter } = getFilters();
+  const parts = [];
+  parts.push(`Date: ${getDateRangeLabel()}`);
+  parts.push(`Platforms: ${platforms.length ? platforms.join(", ") : "—"}`);
+  parts.push(`Objective: ${objective === "all" ? "All" : objective}`);
+  if (campaignFilter !== "all") parts.push(`Campaign: ${campaignFilter}`);
+  if (marketFilter !== "all") parts.push(`Market: ${marketFilter}`);
+  if (search) parts.push(`Search: “${search}”`);
+  return parts;
+}
+
+function openCustomReport() {
+  const now = new Date();
+  const filtered = filterData();
+  const priorRows = rowsForPriorPeriod();
+  const cur = rollupMetrics(filtered);
+  const prev = rollupMetrics(priorRows);
+  const periodText = getPeriodDescription(now);
+  const campaigns = topCampaignsBySpend(filtered, 12);
+
+  const pct = (a, b) => {
+    if (b === 0 && a === 0) return "—";
+    if (b === 0) return "new";
+    const p = ((a - b) / b) * 100;
+    if (Math.abs(p) < 0.05) return "flat";
+    return (p > 0 ? "+" : "") + p.toFixed(1) + "%";
+  };
+
+  const rowsHtml = campaigns.length
+    ? campaigns
+        .map(
+          c => `<tr><td>${escapeHtml(c.name)}</td><td class="num">${formatCurrency(c.spend)}</td><td class="num">${formatNumber(Math.round(c.conv))}</td></tr>`
+        )
+        .join("")
+    : `<tr><td colspan="3">No rows for current filters.</td></tr>`;
+
+  const filterLines = describeActiveFiltersForReport()
+    .map(line => `<li>${escapeHtml(line)}</li>`)
+    .join("");
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Paid Media Report — ${now.toISOString().slice(0, 10)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; color: #111; background: #fff; margin: 0; padding: 1.25rem 1.5rem; font-size: 11pt; line-height: 1.4; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    .meta { color: #444; font-size: 0.9rem; margin-bottom: 1rem; }
+    h2 { font-size: 1rem; margin: 1.1rem 0 0.4rem; border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; }
+    .period { background: #f4f4f5; padding: 0.6rem 0.75rem; border-radius: 6px; font-size: 0.88rem; margin-bottom: 0.75rem; }
+    ul.filters { margin: 0.25rem 0 0; padding-left: 1.2rem; font-size: 0.88rem; }
+    table { width: 100%; border-collapse: collapse; margin-top: 0.35rem; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid #e5e5e5; }
+    th { font-weight: 600; background: #fafafa; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .kpis { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem 1.25rem; }
+    @media (min-width: 520px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+    .kpi { border: 1px solid #e5e5e5; border-radius: 6px; padding: 0.45rem 0.55rem; }
+    .kpi .l { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: #666; }
+    .kpi .v { font-size: 1.05rem; font-weight: 600; margin-top: 0.1rem; }
+    .kpi .d { font-size: 0.78rem; color: #555; margin-top: 0.15rem; }
+    .hint { margin-top: 1rem; font-size: 0.8rem; color: #666; }
+    @media print {
+      body { padding: 0.5rem; }
+      .hint { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Bob Evans — Paid Media Performance</h1>
+  <p class="meta">Generated ${now.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })} · Matches current dashboard filters</p>
+  <div class="period"><strong>Period</strong><br />${escapeHtml(periodText)}</div>
+  <h2>Filters applied</h2>
+  <ul class="filters">${filterLines}</ul>
+  <h2>Summary vs prior period</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="l">Spend</div><div class="v">${formatCurrency(cur.spend)}</div><div class="d">vs prior: ${escapeHtml(pct(cur.spend, prev.spend))}</div></div>
+    <div class="kpi"><div class="l">Conversions</div><div class="v">${formatNumber(Math.round(cur.conversions))}</div><div class="d">vs prior: ${escapeHtml(pct(cur.conversions, prev.conversions))}</div></div>
+    <div class="kpi"><div class="l">Impressions</div><div class="v">${formatNumber(cur.impressions)}</div><div class="d">vs prior: ${escapeHtml(pct(cur.impressions, prev.impressions))}</div></div>
+    <div class="kpi"><div class="l">Clicks</div><div class="v">${formatNumber(cur.clicks)}</div><div class="d">vs prior: ${escapeHtml(pct(cur.clicks, prev.clicks))}</div></div>
+    <div class="kpi"><div class="l">CPA</div><div class="v">${escapeHtml(formatCPA(cur.spend, cur.conversions))}</div><div class="d">vs prior: ${escapeHtml(pct(cur.cpa, prev.cpa))}</div></div>
+    <div class="kpi"><div class="l">ROAS</div><div class="v">${escapeHtml(formatROAS(cur.revenue, cur.spend))}</div><div class="d">vs prior: ${escapeHtml(pct(cur.roas, prev.roas))}</div></div>
+  </div>
+  <h2>Top campaigns by spend</h2>
+  <table>
+    <thead><tr><th>Campaign</th><th class="num">Spend</th><th class="num">Conversions</th></tr></thead>
+    <tbody>${rowsHtml}</tbody>
+  </table>
+  <p class="hint">Use your browser’s Print dialog → “Save as PDF” to keep a copy. Close this tab when done.</p>
+  <script>setTimeout(function(){ window.print(); }, 300);<\/script>
+</body>
+</html>`;
+
+  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=800");
+  if (!w) {
+    alert("Pop-up blocked. Allow pop-ups for this site to open the custom report.");
+    return;
+  }
+  w.document.write(html);
+  w.document.close();
+}
+
 function initExport() {
   const btn = document.getElementById("exportCsvBtn");
   if (btn) btn.addEventListener("click", exportToCsv);
+  const reportBtn = document.getElementById("customReportBtn");
+  if (reportBtn) reportBtn.addEventListener("click", openCustomReport);
 }
 
 /**

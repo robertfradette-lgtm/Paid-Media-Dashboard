@@ -44,6 +44,14 @@
         <input type="file" id="importPlanCsvInput" accept=".csv,text/csv" hidden aria-label="Import plan CSV" />
         <button type="button" class="export-btn export-btn--secondary" id="importPlanCsvBtn" title="Replace pacing plan from CSV">Import plan</button>
         <button type="button" class="export-btn" id="exportCsvBtn">Export CSV</button>
+        <button
+          type="button"
+          class="export-btn export-btn--secondary"
+          id="customReportBtn"
+          title="Opens a print-friendly summary (PDF via Print → Save as PDF)"
+        >
+          Custom report
+        </button>
         <span class="app-header-maintainer" id="devPanelDock" hidden>
           <button
             type="button"
@@ -496,7 +504,7 @@
       </div>
     </div>
 
-    <script src="script.js?v=7"></script>
+    <script src="script.js?v=8"></script>
   </body>
   </html>
 
