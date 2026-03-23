@@ -756,45 +756,106 @@ app.post("/api/plan/csv", express.raw({ limit: "5mb", type: "*/*" }), (req, res)
 app.post("/api/performance/manual", (req, res) => {
   try {
     const body = req.body || {};
-    const entry = {
-      date: String(body.date || "").trim() || new Date().toISOString().slice(0, 10),
-      platform: String(body.platform || "dsp").toLowerCase().trim(),
-      market: String(body.market || "").toLowerCase().trim(),
-      campaign: String(body.campaign || "").trim(),
-      ad: String(body.ad || "").trim(),
-      objective: String(body.objective || "awareness").toLowerCase().trim(),
-      spend: Number(body.spend) || 0,
-      impressions: Number(body.impressions) || 0,
-      clicks: Number(body.clicks) || 0,
-      conversions: Number(body.conversions) || 0,
-      revenue: Number(body.revenue) || 0,
-    };
+
+    const todayIso = new Date().toISOString().slice(0, 10);
+    const dateStartRaw = String(body.dateStart || body.startDate || body.date || "").trim() || todayIso;
+    const dateEndRaw = String(body.dateEnd || body.endDate || "").trim() || dateStartRaw;
+
+    function parseYmdToUtc(dateStr) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
+      if (!m) return null;
+      const y = Number(m[1]);
+      const mo = Number(m[2]);
+      const d = Number(m[3]);
+      if (!y || !mo || !d) return null;
+      return new Date(Date.UTC(y, mo - 1, d));
+    }
+
+    function formatUtcYmd(d) {
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(d.getUTCDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+
+    const startUtc = parseYmdToUtc(dateStartRaw);
+    const endUtc = parseYmdToUtc(dateEndRaw);
+    if (!startUtc || !endUtc) {
+      return res.status(400).json({ error: "Invalid flight start/end date. Use YYYY-MM-DD." });
+    }
+    if (startUtc > endUtc) {
+      return res.status(400).json({ error: "Flight start date must be <= flight end date." });
+    }
+
+    // Expand flight range into daily manual rows.
+    // We distribute totals evenly across days, and keep the grand totals by putting rounding remainders on the last day.
+    const dates = [];
+    let cursor = new Date(startUtc.getTime());
+    while (cursor <= endUtc) {
+      dates.push(formatUtcYmd(cursor));
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    }
+
+    const dayCount = dates.length || 1;
+
+    const platform = String(body.platform || "dsp").toLowerCase().trim();
+    const market = String(body.market || "").toLowerCase().trim();
+    const campaign = String(body.campaign || "").trim();
+    const ad = String(body.ad || "").trim();
+    const objective = String(body.objective || "awareness").toLowerCase().trim();
+
+    const totalSpendCents = Math.round((Number(body.spend) || 0) * 100);
+    const totalRevenueCents = Math.round((Number(body.revenue) || 0) * 100);
+    const totalImpressions = Math.round(Number(body.impressions) || 0);
+    const totalClicks = Math.round(Number(body.clicks) || 0);
+    const totalConversions = Math.round(Number(body.conversions) || 0);
+
+    const spendBase = Math.floor(totalSpendCents / dayCount);
+    const spendRemainder = totalSpendCents - spendBase * dayCount;
+    const revenueBase = Math.floor(totalRevenueCents / dayCount);
+    const revenueRemainder = totalRevenueCents - revenueBase * dayCount;
+
+    const impsBase = Math.floor(totalImpressions / dayCount);
+    const impsRemainder = totalImpressions - impsBase * dayCount;
+    const clicksBase = Math.floor(totalClicks / dayCount);
+    const clicksRemainder = totalClicks - clicksBase * dayCount;
+    const convBase = Math.floor(totalConversions / dayCount);
+    const convRemainder = totalConversions - convBase * dayCount;
+
+    const expandedEntries = dates.map((date, idx) => {
+      const isLast = idx === dates.length - 1;
+      return {
+        date,
+        platform,
+        market,
+        campaign,
+        ad,
+        objective,
+        spend: (spendBase + (isLast ? spendRemainder : 0)) / 100,
+        revenue: (revenueBase + (isLast ? revenueRemainder : 0)) / 100,
+        impressions: impsBase + (isLast ? impsRemainder : 0),
+        clicks: clicksBase + (isLast ? clicksRemainder : 0),
+        conversions: convBase + (isLast ? convRemainder : 0),
+      };
+    });
+
+    const keysToReplace = new Set(
+      expandedEntries.map((e) => `${e.date}|${e.platform}|${e.campaign}|${e.ad}`)
+    );
+
     const existing = loadManualEntries();
-    // Upsert: if an entry already exists with the same
-    // date + platform + campaign + ad, replace it instead of duplicating.
-    const asRaw = existing
-      .map((r) => ({
-        date: r.date,
-        platform: r.platform,
-        market: r.market || "",
-        campaign: r.campaign,
-        ad: r.ad,
-        objective: r.objective,
-        spend: r.spend,
-        impressions: r.impressions,
-        clicks: r.clicks,
-        conversions: r.conversions,
-        revenue: r.revenue,
-      }))
-      .filter((r) => !(
-        r.date === entry.date &&
-        r.platform === entry.platform &&
-        r.campaign === entry.campaign &&
-        r.ad === entry.ad
-      ));
-    asRaw.push(entry);
+    const asRaw = existing.filter((r) => {
+      const key = `${r.date}|${r.platform}|${r.campaign}|${r.ad}`;
+      return !keysToReplace.has(key);
+    });
+
+    asRaw.push(...expandedEntries);
     saveManualEntries(asRaw);
-    res.json({ ok: true, message: "Entry added. It will appear in the dashboard overview." });
+
+    res.json({
+      ok: true,
+      message: `Entry added for ${dayCount} day(s). It will appear in the dashboard overview.`,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Failed to save manual entry", details: err.message });

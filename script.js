@@ -1116,10 +1116,11 @@ function initManualEntry() {
   if (!toggle || !wrapper || !form) return;
 
   function setToday() {
-    const dateInput = document.getElementById("manualDate");
-    if (dateInput && !dateInput.value) {
-      dateInput.value = new Date().toISOString().slice(0, 10);
-    }
+    const startInput = document.getElementById("manualStartDate");
+    const endInput = document.getElementById("manualEndDate");
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (startInput && !startInput.value) startInput.value = todayStr;
+    if (endInput && !endInput.value) endInput.value = (startInput && startInput.value) || todayStr;
   }
 
   if (manualCampaignSelect && manualCampaignNewWrapper && manualCampaignNewInput) {
@@ -1166,7 +1167,10 @@ function initManualEntry() {
     }
 
     const payload = {
-      date: document.getElementById("manualDate").value,
+      // Manual entries are stored with a single `date` per row.
+      // When you submit a flight range, the backend expands it into daily rows.
+      dateStart: document.getElementById("manualStartDate").value,
+      dateEnd: document.getElementById("manualEndDate").value,
       platform: document.getElementById("manualPlatform").value,
       market: (document.getElementById("manualMarket")?.value || "").trim(),
       campaign: campaignValue,

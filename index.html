@@ -78,13 +78,17 @@
         <div class="manual-entry-form-wrapper" id="manualEntryFormWrapper" hidden>
           <p class="manual-entry-intro">
             Enter performance for a line item (e.g. required Display). It will roll up into the summary cards, charts, and tables above.
-            To update a row later, just submit the form again with the same date, platform, campaign, and ad — it will replace the previous values.
+            To update a row later, just submit the form again with the same flight start/end date, platform, campaign, and ad — it will replace the previous values.
           </p>
           <form class="manual-entry-form" id="manualEntryForm">
             <div class="form-row">
               <label class="form-field">
-                <span class="form-label">Date</span>
-                <input type="date" name="date" id="manualDate" required />
+                <span class="form-label">Flight start</span>
+                <input type="date" name="dateStart" id="manualStartDate" required />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Flight end</span>
+                <input type="date" name="dateEnd" id="manualEndDate" required />
               </label>
               <label class="form-field">
                 <span class="form-label">Platform</span>
@@ -504,7 +508,7 @@
       </div>
     </div>
 
-    <script src="script.js?v=9"></script>
+    <script src="script.js?v=10"></script>
   </body>
   </html>
 
