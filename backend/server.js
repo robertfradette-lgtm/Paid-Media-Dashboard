@@ -71,7 +71,10 @@ const GOOGLE_SHEET_URL = process.env.GOOGLE_SHEET_URL;
 
 const googleSheetConfigured = () => GOOGLE_SHEET_URL && GOOGLE_SHEET_URL.startsWith("http");
 
-// Expected CSV columns: date, platform, campaign, ad, objective, spend, impressions, clicks, conversions, revenue
+// Expected CSV columns (one row per date OR per flight):
+// - Daily reporting: date (YYYY-MM-DD)
+// - Flight range reporting: flight_start + flight_end (YYYY-MM-DD each)
+// Plus: platform, campaign, ad, objective, spend, impressions, clicks, conversions, revenue
 const CSV_PATH = path.join(__dirname, "data", "performance.csv");
 const PLAN_PATH = path.join(__dirname, "data", "plan.csv");
 const MANUAL_ENTRIES_PATH = path.join(__dirname, "data", "manual_entries.json");
@@ -179,6 +182,23 @@ const PERFORMANCE_HEADER_SLUG_TO_CANON = (() => {
     "reportdate",
     "start date",
     "time",
+  ]);
+  add("flight_start", [
+    "flight_start",
+    "flight start",
+    "start date",
+    "start_date",
+    "date_start",
+    "from",
+  ]);
+  add("flight_end", [
+    "flight_end",
+    "flight end",
+    "end date",
+    "end_date",
+    "date_end",
+    "to",
+    "through",
   ]);
   add("platform", [
     "platform",
@@ -289,6 +309,84 @@ function parseRow(r) {
     conversions: Number(r.conversions) || 0,
     revenue: Number(r.revenue) || 0,
   };
+}
+
+function parseYmdToUtc(dateStr) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || "").trim());
+  if (!m) return null;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  if (!y || !mo || !d) return null;
+  return new Date(Date.UTC(y, mo - 1, d));
+}
+
+function formatUtcYmd(d) {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function expandFlightPerformanceRow(row) {
+  const startUtc = parseYmdToUtc(row.flight_start);
+  const endUtc = parseYmdToUtc(row.flight_end);
+  if (!startUtc || !endUtc) {
+    throw new Error("Invalid flight_start/flight_end date. Use YYYY-MM-DD for each.");
+  }
+  if (startUtc > endUtc) {
+    throw new Error("Flight start date must be <= flight end date.");
+  }
+
+  const dates = [];
+  let cursor = new Date(startUtc.getTime());
+  while (cursor <= endUtc) {
+    dates.push(formatUtcYmd(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  const dayCount = dates.length || 1;
+
+  const platform = String(row.platform || "dsp").toLowerCase().trim();
+  const market = String(row.market || "").toLowerCase().trim();
+  const campaign = String(row.campaign || "").trim();
+  const ad = String(row.ad || "").trim();
+  const objective = String(row.objective || "awareness").toLowerCase().trim();
+
+  const totalSpendCents = Math.round((Number(row.spend) || 0) * 100);
+  const totalRevenueCents = Math.round((Number(row.revenue) || 0) * 100);
+  const totalImpressions = Math.round(Number(row.impressions) || 0);
+  const totalClicks = Math.round(Number(row.clicks) || 0);
+  const totalConversions = Math.round(Number(row.conversions) || 0);
+
+  const spendBase = Math.floor(totalSpendCents / dayCount);
+  const spendRemainder = totalSpendCents - spendBase * dayCount;
+  const revenueBase = Math.floor(totalRevenueCents / dayCount);
+  const revenueRemainder = totalRevenueCents - revenueBase * dayCount;
+
+  const impsBase = Math.floor(totalImpressions / dayCount);
+  const impsRemainder = totalImpressions - impsBase * dayCount;
+  const clicksBase = Math.floor(totalClicks / dayCount);
+  const clicksRemainder = totalClicks - clicksBase * dayCount;
+  const convBase = Math.floor(totalConversions / dayCount);
+  const convRemainder = totalConversions - convBase * dayCount;
+
+  return dates.map((date, idx) => {
+    const isLast = idx === dates.length - 1;
+    return {
+      date,
+      platform,
+      market,
+      campaign,
+      ad,
+      objective,
+      spend: (spendBase + (isLast ? spendRemainder : 0)) / 100,
+      impressions: impsBase + (isLast ? impsRemainder : 0),
+      clicks: clicksBase + (isLast ? clicksRemainder : 0),
+      conversions: convBase + (isLast ? convRemainder : 0),
+      revenue: (revenueBase + (isLast ? revenueRemainder : 0)) / 100,
+    };
+  });
 }
 
 function loadManualEntries() {
@@ -696,16 +794,45 @@ app.post(
     if (!normalized.length) {
       return res.status(400).json({ error: "No data rows found (keep the header row and add at least one data row)" });
     }
+
     const keys = Object.keys(normalized[0]);
-    const missing = PERFORMANCE_CSV_REQUIRED.filter((h) => !keys.includes(h));
-    if (missing.length) {
+    const hasDailyDate = keys.includes("date");
+    const hasFlight = keys.includes("flight_start") && keys.includes("flight_end");
+    const requiredNonDate = PERFORMANCE_CSV_REQUIRED.filter((h) => h !== "date");
+    const missingNonDate = requiredNonDate.filter((h) => !keys.includes(h));
+
+    if (!hasDailyDate && !hasFlight) {
       const rawKeys = Object.keys(normalizeCsvKeys(rows[0]));
       return res.status(400).json({
-        error: `Missing column(s): ${missing.map((m) => `"${m}"`).join(", ")}`,
-        details: `Headers in your file: ${rawKeys.join(", ")}\n\nWe accept common aliases (e.g. Channel→platform, Cost→spend, Report Date→date). Required fields: ${PERFORMANCE_CSV_REQUIRED.join(", ")}, plus optional market.`,
+        error: "Missing date information",
+        details:
+          `Your file must include either \`date\` (YYYY-MM-DD) OR both \`flight_start\` and \`flight_end\` (YYYY-MM-DD).\n\n` +
+          `Headers in your file: ${rawKeys.join(", ")}`,
       });
     }
-    const out = rowsToPerformanceCsv(normalized);
+
+    if (missingNonDate.length) {
+      const rawKeys = Object.keys(normalizeCsvKeys(rows[0]));
+      return res.status(400).json({
+        error: `Missing column(s): ${missingNonDate.map((m) => `"${m}"`).join(", ")}`,
+        details:
+          `We accept common aliases (e.g. Channel→platform, Cost→spend, Report Date→date). Required fields: ${requiredNonDate.join(", ")}. ` +
+          `You can provide date as daily \`date\` OR flight range (\`flight_start\` + \`flight_end\`). ` +
+          `Optional: market.`,
+        rawKeys: rawKeys.join(", "),
+      });
+    }
+
+    let expanded = normalized;
+    if (!hasDailyDate) {
+      try {
+        expanded = normalized.flatMap((r) => expandFlightPerformanceRow(r));
+      } catch (err) {
+        return res.status(400).json({ error: "Invalid flight_start/flight_end values", details: err.message });
+      }
+    }
+
+    const out = rowsToPerformanceCsv(expanded);
     fs.writeFileSync(CSV_PATH, out, "utf8");
     console.log(`performance.csv replaced via API (${normalized.length} rows)`);
     res.json({ ok: true, rows: normalized.length, message: "performance.csv updated. Refresh the dashboard." });

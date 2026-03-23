@@ -8,7 +8,9 @@ The importer **maps common export headers** to the fields below (e.g. **Channel*
 
 | Column | Notes |
 |--------|--------|
-| `date` | `YYYY-MM-DD` |
+| `date` | `YYYY-MM-DD` (daily reporting date) OR use `flight_start` + `flight_end` below |
+| `flight_start` | `YYYY-MM-DD` (flight start date) |
+| `flight_end` | `YYYY-MM-DD` (flight end date) |
 | `platform` | `google`, `meta`, `tiktok`, or `dsp` (lowercase) |
 | `market` | e.g. `cleveland`, `columbus` (lowercase; optional but used for filters) |
 | `campaign` | Free text |
@@ -20,7 +22,7 @@ The importer **maps common export headers** to the fields below (e.g. **Channel*
 | `conversions` | Integer |
 | `revenue` | Number |
 
-**Template file:** `Paid_Media_Performance_Template.csv` (open in Excel or Google Sheets).
+**Template file:** `Paid_Media_Performance_Template.csv` (open in Excel or Google Sheets). If you use `flight_start`/`flight_end`, the importer expands each row into daily rows and distributes totals evenly across the flight (rounding remainder on the last day).
 
 ## Plan data (pacing)
 
