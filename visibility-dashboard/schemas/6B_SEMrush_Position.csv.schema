@@ -1,0 +1,13 @@
+# SEMrush — Position Tracking (CSV)
+# Use for organic Share of Voice, Top-3 keyword count.
+
+column,type,description
+date,DATE,YYYY-MM-DD
+project_id,STRING,e.g. BE_MAIN
+keyword,STRING,Search term
+keyword_group,STRING,e.g. Family Dining
+dma,STRING,Columbus, etc.
+device,STRING,Mobile | Desktop | All
+position,NUMBER,Average rank (1–100+)
+visibility_percent,NUMBER,Share of voice (0–100)
+ranking_url,STRING,URL ranking for this keyword

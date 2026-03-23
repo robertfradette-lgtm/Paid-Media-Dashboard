@@ -1,0 +1,114 @@
+-- Visibility Dashboard - DAX Measures
+-- Paste into Power BI > Modeling > New Measure
+-- Ensure Date, DMA, Device dimensions exist and are linked.
+-- Table names: soci_local, semrush_position, semrush_audit, semrush_backlinks, semrush_ai, ga4_ecommerce
+
+-- ============================================================
+-- PANE A — LOCAL
+-- ============================================================
+
+-- Local Pack Share (% Top-3)
+Local Pack Share % = 
+DIVIDE(
+    SUM(soci_local[top3_impressions]),
+    SUM(soci_local[local_impressions]),
+    0
+) * 100
+
+-- Listing Accuracy Index (0–100)
+Listing Accuracy Index = 
+(
+    SUMX(soci_local, soci_local[hours_ok] = TRUE || soci_local[hours_ok] = 1) * 0.4 +
+    [Categories Complete %] * 0.3 +
+    [Menu UTM Present %] * 0.2 +
+    [Media Fresh %] * 0.1
+) * 100
+
+-- GBP Actions
+GBP Calls = SUM(soci_local[calls])
+GBP Directions = SUM(soci_local[directions])
+GBP Website Clicks = SUM(soci_local[website_clicks])
+
+-- Reputation
+Avg Rating = AVERAGE(soci_local[avg_rating])
+New Reviews = SUM(soci_local[new_reviews])
+Response Time Hours = AVERAGE(soci_local[response_time_hours])
+
+-- ============================================================
+-- PANE B — ORGANIC
+-- ============================================================
+
+-- Share of Voice (avg visibility across priority keywords)
+Share of Voice = AVERAGE(semrush_position[visibility_percent])
+
+-- Top-3 Keyword Count
+Top-3 Keyword Count = 
+CALCULATE(
+    COUNTROWS(semrush_position),
+    semrush_position[position] <= 3
+)
+
+-- Site Health
+Site Health Score = AVERAGE(semrush_audit[site_health])
+
+-- Authority
+Referring Domains = SUM(semrush_backlinks[ref_domains])
+High Value Links Added = SUM(semrush_backlinks[high_value_links_added])
+
+-- ============================================================
+-- PANE C — AI
+-- ============================================================
+
+-- AI Share of Voice
+AI Share of Voice = AVERAGE(semrush_ai[ai_visibility_score]) * 100
+
+-- Prompts Covered (where brand is cited)
+Prompts Covered = 
+CALCULATE(
+    COUNTROWS(semrush_ai),
+    semrush_ai[cited] = TRUE
+)
+
+-- AI Sentiment % (positive)
+AI Sentiment Positive % = 
+DIVIDE(
+    CALCULATE(COUNTROWS(semrush_ai), semrush_ai[sentiment] = "positive"),
+    COUNTROWS(semrush_ai),
+    0
+) * 100
+
+-- ============================================================
+-- PANE D — COMMERCIAL
+-- ============================================================
+
+-- Conversion Rate
+Conversion Rate % = 
+DIVIDE(
+    SUM(ga4_ecommerce[orders]),
+    SUM(ga4_ecommerce[sessions]),
+    0
+) * 100
+
+-- Orders
+Orders = SUM(ga4_ecommerce[orders])
+
+-- Revenue
+Revenue = SUM(ga4_ecommerce[revenue])
+
+-- ============================================================
+-- DELTAS (MoM, YoY)
+-- ============================================================
+
+-- MoM % Change (use with date comparison)
+Local Pack Share MoM % = 
+VAR CurrentVal = [Local Pack Share %]
+VAR PriorMonth = CALCULATE([Local Pack Share %], DATEADD('Date'[Date], -1, MONTH))
+RETURN DIVIDE(CurrentVal - PriorMonth, PriorMonth, 0) * 100
+
+SoV MoM % = 
+VAR CurrentVal = [Share of Voice]
+VAR PriorMonth = CALCULATE([Share of Voice], DATEADD('Date'[Date], -1, MONTH))
+RETURN DIVIDE(CurrentVal - PriorMonth, PriorMonth, 0) * 100
+
+Conversion Rate MoM pp = 
+[Conversion Rate %] - CALCULATE([Conversion Rate %], DATEADD('Date'[Date], -1, MONTH))

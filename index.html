@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bob Evans Paid Media Performance</title>
+    <link rel="stylesheet" href="styles.css?v=8" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div class="app-header-left">
+        <div class="logo-circle">BE</div>
+        <div>
+          <h1>Paid Media Performance</h1>
+          <p class="subtitle">Bob Evans • Google • Meta • TikTok • DSP</p>
+        </div>
+      </div>
+      <div class="app-header-right">
+        <label class="filter-inline">
+          Date range
+          <select id="dateRange" class="select">
+            <option value="7d" selected>Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="90d">Last 90 days</option>
+            <option value="custom">Custom range</option>
+          </select>
+        </label>
+        <label class="filter-inline">
+          Custom
+          <input type="date" id="customStart" class="select" />
+          <span>to</span>
+          <input type="date" id="customEnd" class="select" />
+        </label>
+        <label class="filter-inline">
+          View
+          <select id="viewMode" class="select">
+            <option value="calendar" selected>Calendar year</option>
+            <option value="fiscal">Fiscal year</option>
+          </select>
+        </label>
+        <input type="file" id="importCsvInput" accept=".csv,text/csv" hidden aria-label="Import performance CSV" />
+        <button type="button" class="export-btn" id="importCsvBtn" title="Replace performance data from a CSV file">Import CSV</button>
+        <button type="button" class="export-btn export-btn--secondary" id="downloadTemplateBtn" title="Downloads CSV template (needs backend on port 5001)">Download template</button>
+        <input type="file" id="importPlanCsvInput" accept=".csv,text/csv" hidden aria-label="Import plan CSV" />
+        <button type="button" class="export-btn export-btn--secondary" id="importPlanCsvBtn" title="Replace pacing plan from CSV">Import plan</button>
+        <button type="button" class="export-btn" id="exportCsvBtn">Export CSV</button>
+        <span class="app-header-maintainer" id="devPanelDock" hidden>
+          <button
+            type="button"
+            class="maintainer-btn"
+            id="maintainerGateBtn"
+            title="Maintainer access (password required)"
+          >
+            Maintainer
+          </button>
+        </span>
+      </div>
+    </header>
+
+    <div class="backend-status-bar" id="backendStatusBar" role="status">
+      <span class="backend-status-message" id="backendStatusMessage">Checking connection…</span>
+      <a href="#" class="backend-start-btn" id="backendStartBtn" target="_blank" rel="noopener">How to start backend</a>
+    </div>
+
+    <main class="layout">
+      <section class="manual-entry-panel">
+        <button type="button" class="manual-entry-toggle" id="manualEntryToggle" aria-expanded="false">
+          <span class="toggle-icon">+</span> Add manual entry (e.g. Display ads)
+        </button>
+        <div class="manual-entry-form-wrapper" id="manualEntryFormWrapper" hidden>
+          <p class="manual-entry-intro">
+            Enter performance for a line item (e.g. required Display). It will roll up into the summary cards, charts, and tables above.
+            To update a row later, just submit the form again with the same date, platform, campaign, and ad — it will replace the previous values.
+          </p>
+          <form class="manual-entry-form" id="manualEntryForm">
+            <div class="form-row">
+              <label class="form-field">
+                <span class="form-label">Date</span>
+                <input type="date" name="date" id="manualDate" required />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Platform</span>
+                <select name="platform" id="manualPlatform">
+                  <option value="dsp">DSP / Display & OLV</option>
+                  <option value="google">Google Ads</option>
+                  <option value="meta">Meta (FB/IG)</option>
+                  <option value="tiktok">TikTok Ads</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span class="form-label">Objective</span>
+                <select name="objective" id="manualObjective">
+                  <option value="awareness">Awareness</option>
+                  <option value="traffic">Traffic</option>
+                  <option value="conversions">Conversions</option>
+                </select>
+              </label>
+              <label class="form-field">
+                <span class="form-label">Market (FY27)</span>
+                <select name="market" id="manualMarket" class="select">
+                  <option value="">—</option>
+                  <option value="cleveland">Cleveland</option>
+                  <option value="columbus">Columbus</option>
+                  <option value="cincinnati">Cincinnati</option>
+                  <option value="charleston">Charleston</option>
+                  <option value="dayton">Dayton</option>
+                  <option value="toledo">Toledo</option>
+                  <option value="indianapolis">Indianapolis (control)</option>
+                  <option value="pittsburgh">Pittsburgh (control)</option>
+                </select>
+              </label>
+            </div>
+            <div class="form-row">
+              <label class="form-field form-field-wide">
+                <span class="form-label">Campaign name</span>
+                <select name="campaignSelect" id="manualCampaignSelect" class="select">
+                  <option value="" selected>Select campaign…</option>
+                  <!-- Options are populated from existing data in script.js -->
+                  <option value="__new__">+ Create new campaign…</option>
+                </select>
+              </label>
+              <label class="form-field form-field-wide" id="manualCampaignNewWrapper" style="display: none;">
+                <span class="form-label">New campaign name</span>
+                <input type="text" name="campaignNew" id="manualCampaignNew" placeholder="e.g. Display | Local Deals | OH" />
+              </label>
+              <label class="form-field form-field-wide">
+                <span class="form-label">Ad / creative name</span>
+                <input type="text" name="ad" id="manualAd" placeholder="e.g. 300x250 Local Offers" />
+              </label>
+            </div>
+            <div class="form-row form-row-metrics">
+              <label class="form-field">
+                <span class="form-label">Spend ($)</span>
+                <input type="number" name="spend" id="manualSpend" min="0" step="0.01" placeholder="0" />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Impressions</span>
+                <input type="number" name="impressions" id="manualImpressions" min="0" step="1" placeholder="0" />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Clicks</span>
+                <input type="number" name="clicks" id="manualClicks" min="0" step="1" placeholder="0" />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Conversions</span>
+                <input type="number" name="conversions" id="manualConversions" min="0" step="1" placeholder="0" />
+              </label>
+              <label class="form-field">
+                <span class="form-label">Revenue ($)</span>
+                <input type="number" name="revenue" id="manualRevenue" min="0" step="0.01" placeholder="0" />
+              </label>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">Add to dashboard</button>
+              <button type="button" class="btn-secondary" id="manualEntryCancel">Cancel</button>
+            </div>
+          </form>
+          <div class="manual-entry-message" id="manualEntryMessage" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <section class="filters">
+        <h2>Filters</h2>
+        <div class="filter-row">
+          <div class="filter-group">
+            <h3>Platforms</h3>
+            <label class="checkbox">
+              <input type="checkbox" value="google" checked />
+              <span>Google Ads</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" value="meta" checked />
+              <span>Meta (FB/IG)</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" value="tiktok" checked />
+              <span>TikTok Ads</span>
+            </label>
+            <label class="checkbox">
+              <input type="checkbox" value="dsp" checked />
+              <span>DSP (OLV & Display)</span>
+            </label>
+          </div>
+          <div class="filter-group">
+            <h3>Objective</h3>
+            <label class="radio">
+              <input type="radio" name="objective" value="all" checked />
+              <span>All</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="objective" value="awareness" />
+              <span>Awareness</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="objective" value="traffic" />
+              <span>Traffic</span>
+            </label>
+            <label class="radio">
+              <input type="radio" name="objective" value="conversions" />
+              <span>Conversions</span>
+            </label>
+          </div>
+          <div class="filter-group">
+            <h3>Search</h3>
+            <input
+              id="searchInput"
+              type="text"
+              class="search-input"
+              placeholder="Search campaign or ad name…"
+            />
+          </div>
+          <div class="filter-group">
+            <h3>Campaign</h3>
+            <select id="campaignFilter" class="select">
+              <option value="all" selected>All campaigns</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <h3>Market (FY27)</h3>
+            <select id="marketFilter" class="select">
+              <option value="all" selected>All markets</option>
+              <option value="funded">Funded only</option>
+              <option value="control">Control only</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-label">Total Spend</div>
+          <div class="kpi-value" id="kpiSpend">$0</div>
+          <div class="kpi-sub" id="kpiSpendChange">vs prev: –</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Impressions</div>
+          <div class="kpi-value" id="kpiImpressions">0</div>
+          <div class="kpi-sub" id="kpiImpChange">vs prev: –</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Clicks</div>
+          <div class="kpi-value" id="kpiClicks">0</div>
+          <div class="kpi-sub" id="kpiClickChange">vs prev: –</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">Conversions</div>
+          <div class="kpi-value" id="kpiConversions">0</div>
+          <div class="kpi-sub" id="kpiConvChange">vs prev: –</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">CPA</div>
+          <div class="kpi-value" id="kpiCPA">$0.00</div>
+          <div class="kpi-sub">Cost per acquisition</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">CPAV</div>
+          <div class="kpi-value" id="kpiCPAV">$0.00</div>
+          <div class="kpi-sub">Cost per attributed visit</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-label">ROAS</div>
+          <div class="kpi-value" id="kpiROAS">0.00x</div>
+          <div class="kpi-sub">Return on ad spend</div>
+        </div>
+      </section>
+
+      <section class="pacing-panel">
+        <div class="chart-header">
+          <h2>Pacing — Spend vs Plan</h2>
+          <label class="filter-inline">
+            Month
+            <select id="pacingMonth" class="select select-sm">
+              <option value="">Loading…</option>
+            </select>
+          </label>
+        </div>
+        <div class="pacing-table-wrapper">
+          <table class="pacing-table">
+            <thead>
+              <tr>
+                <th>Month</th>
+                <th>Market</th>
+                <th>Platform</th>
+                <th>Actual Spend</th>
+                <th>Plan</th>
+                <th>Variance</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="pacingTableBody"></tbody>
+          </table>
+        </div>
+        <p class="pacing-legend">
+          <span class="flag-ok">Within ±10%</span> •
+          <span class="flag-over">Over plan &gt;10%</span> •
+          <span class="flag-under">Under plan &gt;10%</span>
+        </p>
+      </section>
+
+      <section class="charts">
+        <div class="chart-panel">
+          <div class="chart-header">
+            <h2>Spend & Conversions over time</h2>
+          </div>
+          <div class="chart-body" id="timeseriesChart">
+            <!-- Populated by script.js -->
+          </div>
+        </div>
+        <div class="chart-panel">
+          <div class="chart-header">
+            <h2>Performance by platform</h2>
+            <select id="platformMetric" class="select select-sm">
+              <option value="spend">Spend</option>
+              <option value="conversions">Conversions</option>
+              <option value="cpav">CPAV</option>
+              <option value="roas">ROAS</option>
+            </select>
+          </div>
+          <div class="chart-body" id="platformChart">
+            <!-- Populated by script.js -->
+          </div>
+        </div>
+        <div class="chart-panel" id="marketChartPanel">
+          <div class="chart-header">
+            <h2>Performance by market</h2>
+            <select id="marketMetric" class="select select-sm">
+              <option value="spend">Spend</option>
+              <option value="conversions">Conversions</option>
+              <option value="cpav">CPAV</option>
+            </select>
+          </div>
+          <div class="chart-body" id="marketChart">
+            <!-- Populated by script.js -->
+          </div>
+        </div>
+      </section>
+
+      <section class="tables">
+        <div class="tabs">
+          <button class="tab-button active" data-tab="campaigns">By campaign</button>
+          <button class="tab-button" data-tab="ads">By ad</button>
+        </div>
+
+        <div class="table-wrapper active" id="tableCampaigns">
+          <table>
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th class="th-market">Market</th>
+                <th>Campaign</th>
+                <th>Objective</th>
+                <th>Spend</th>
+                <th>Impr.</th>
+                <th>Clicks</th>
+                <th>CTR</th>
+                <th>Conv.</th>
+                <th>CPA</th>
+                <th>ROAS</th>
+              </tr>
+            </thead>
+            <tbody id="campaignTableBody"></tbody>
+          </table>
+        </div>
+
+        <div class="table-wrapper" id="tableAds">
+          <table>
+            <thead>
+              <tr>
+                <th>Platform</th>
+                <th class="th-market">Market</th>
+                <th>Campaign</th>
+                <th>Ad name</th>
+                <th>Spend</th>
+                <th>Impr.</th>
+                <th>Clicks</th>
+                <th>CTR</th>
+                <th>Conv.</th>
+                <th>CPA</th>
+                <th>ROAS</th>
+              </tr>
+            </thead>
+            <tbody id="adTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <div
+      class="help-modal"
+      id="maintainerPasswordModal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="maintainerPasswordTitle"
+    >
+      <div class="help-modal__backdrop" id="maintainerPasswordBackdrop" tabindex="-1"></div>
+      <div class="help-modal__panel help-modal__panel--narrow">
+        <div class="help-modal__head">
+          <h2 id="maintainerPasswordTitle">Restricted</h2>
+          <button type="button" class="help-modal__close" id="maintainerPasswordClose" aria-label="Close">×</button>
+        </div>
+        <div class="help-modal__body">
+          <p class="help-modal__lead">Maintainer access only. Enter the password to continue.</p>
+          <label class="dev-unlock-label">
+            <span class="dev-unlock-label__text">Password</span>
+            <input
+              type="password"
+              class="dev-unlock-input"
+              id="maintainerPasswordInput"
+              autocomplete="current-password"
+            />
+          </label>
+          <p class="dev-unlock-error" id="maintainerPasswordError" hidden></p>
+          <div class="dev-unlock-actions">
+            <button type="button" class="maintainer-btn maintainer-btn--primary" id="maintainerPasswordSubmit">
+              Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Developer notes modal (opened after Maintainer password or session) -->
+    <div
+      class="help-modal"
+      id="importHelpModal"
+      hidden
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="importHelpTitle"
+    >
+      <div class="help-modal__backdrop" id="importHelpBackdrop" tabindex="-1"></div>
+      <div class="help-modal__panel">
+        <div class="help-modal__head">
+          <h2 id="importHelpTitle">Developer notes</h2>
+          <button type="button" class="help-modal__close" id="importHelpClose" aria-label="Close">×</button>
+        </div>
+        <div class="help-modal__body">
+          <p class="help-modal__lead">
+            CSV import and live data need the <strong>backend</strong> running. Use this page when something fails (HTML instead of JSON, port errors, etc.).
+          </p>
+
+          <h3>1. Start the server</h3>
+          <ol>
+            <li>Open <strong>Terminal</strong> (or Cursor’s terminal).</li>
+            <li>Go to the <code>backend</code> folder inside this project, then run:
+              <pre><code>npm start</code></pre>
+            </li>
+            <li>You should see: <strong>Paid media backend listening on http://localhost:5001</strong></li>
+            <li>Leave that terminal <strong>open</strong> while you use the dashboard.</li>
+          </ol>
+          <p>
+            <strong>Open this dashboard at:</strong>
+            <a href="http://localhost:5001" target="_blank" rel="noopener">http://localhost:5001</a>
+            — same port as the API (avoids “wrong server” errors).
+          </p>
+
+          <h3>2. Port 5001 already in use</h3>
+          <p>Something else is using the port (often an old Node process).</p>
+          <pre><code>lsof -i :5001</code></pre>
+          <p>Note the <strong>PID</strong> (second column), then run <code>kill</code> and that number, e.g. <code>kill 17616</code> (use your number).</p>
+          <p>If it won’t stop: <code>kill -9</code> and the same number. Then <code>npm start</code> again.</p>
+          <p><strong>Or</strong> use another port: <code>PORT=5002 npm start</code> and open <strong>http://localhost:5002</strong>.</p>
+
+          <h3>3. Import shows HTML instead of JSON</h3>
+          <ul>
+            <li>Confirm the backend is running (<code>npm start</code>).</li>
+            <li>Use <strong>http://localhost:5001</strong> in the browser (not a <code>file://</code> page if imports fail).</li>
+            <li>After changing server code, restart the backend (Ctrl+C, then <code>npm start</code>).</li>
+          </ul>
+
+          <h3>4. Import validation errors (400)</h3>
+          <ul>
+            <li>Use <strong>Download template</strong> for correct headers.</li>
+            <li>Include a header row and at least one data row.</li>
+          </ul>
+
+          <h3>5. Stop the server</h3>
+          <p>In the terminal where <code>npm start</code> is running: <strong>Ctrl+C</strong>.</p>
+
+          <p class="help-modal__foot">
+            Long-form copy: <code>DASHBOARD_QUICK_REFERENCE.md</code> in the repo. Password matches <code>DEV_PANEL_TOKEN</code> in <code>backend/.env</code>.
+          </p>
+          <p class="help-modal__lock">
+            <button type="button" class="help-modal__lock-btn" id="devPanelLockBtn">Lock (require password next time)</button>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script src="script.js?v=6"></script>
+  </body>
+  </html>
+

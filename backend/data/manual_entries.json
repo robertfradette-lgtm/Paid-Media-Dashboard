@@ -1,0 +1,41 @@
+[
+  {
+    "date": "2026-03-21",
+    "platform": "dsp",
+    "market": "columbus",
+    "campaign": "Easter",
+    "ad": "FHF",
+    "objective": "awareness",
+    "spend": 
+    "impressions": 
+    "clicks": 
+    "conversions":
+    "revenue":
+  },
+  {
+    "date": "2026-03-21",
+    "platform": "meta",
+    "market": "columbus",
+    "campaign": "Easter",
+    "ad": "FHF",
+    "objective": "awareness",
+    "spend":
+    "impressions":
+    "clicks":
+    "conversions":
+    "revenue": 
+  },
+  {
+    "date": "2026-03-21",
+    "platform": "dsp",
+    "market": "cincinnati",
+    "campaign": "Paid Social | Millennial Parents | Video",
+    "ad": "",
+    "objective": "awareness",
+    "spend": 
+    "impressions"
+    "clicks":
+    "conversions":
+    "revenue":
+  }
+]

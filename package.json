@@ -1,0 +1,11 @@
+{
+  "name": "paid-media-dashboard",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node backend/server.js",
+    "build": "npm install --prefix backend"
+  }
+}

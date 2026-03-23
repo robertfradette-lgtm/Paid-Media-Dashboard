@@ -1,0 +1,26 @@
+# SOCI — Local / GBP (CSV)
+# Send this schema to your SOCI vendor. Require exact column names and types.
+
+column,type,description
+date,DATE,YYYY-MM-DD
+location_id,STRING,e.g. OH123
+store_name,STRING,Display name
+dma,STRING,e.g. Columbus
+city,STRING
+state,STRING,e.g. OH
+gbp_cid,STRING,Google Business Profile CID if available
+local_impressions,INTEGER,Total local search impressions
+top3_impressions,INTEGER,Impressions in top-3 Local Pack
+calls,INTEGER,Phone call actions
+directions,INTEGER,Directions link clicks
+website_clicks,INTEGER,Website button clicks
+hours_ok,BOOLEAN,Hours set correctly (true/false)
+holiday_hours_set,BOOLEAN,Holiday hours configured
+categories_count,INTEGER,Primary categories count
+attributes_count,INTEGER,Attributes filled
+menu_url_present,BOOLEAN,Menu URL present
+utm_present,BOOLEAN,UTM on website link
+photos_last30d,INTEGER,New photos in last 30 days
+avg_rating,NUMBER,Average review rating (e.g. 4.2)
+new_reviews,INTEGER,New reviews in period
+response_time_hours,NUMBER,Median hours to owner response (SLA)
