@@ -1332,17 +1332,44 @@ function openCustomReport() {
     <tbody>${rowsHtml}</tbody>
   </table>
   <p class="hint">Use your browser’s Print dialog → “Save as PDF” to keep a copy. Close this tab when done.</p>
-  <script>setTimeout(function(){ window.print(); }, 300);<\/script>
 </body>
 </html>`;
 
-  const w = window.open("", "_blank", "noopener,noreferrer,width=900,height=800");
+  // Blob URL works when document.write on a new window fails (e.g. noopener / strict policies).
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  // Do not use noopener here — it can return a window you cannot write to, leaving a blank tab.
+  const w = window.open(url, "_blank");
   if (!w) {
-    alert("Pop-up blocked. Allow pop-ups for this site to open the custom report.");
+    URL.revokeObjectURL(url);
+    alert("Pop-up blocked. Allow pop-ups for this site to open the report.");
     return;
   }
-  w.document.write(html);
-  w.document.close();
+  const cleanup = () => {
+    try {
+      URL.revokeObjectURL(url);
+    } catch (_) {
+      /* ignore */
+    }
+  };
+  let printed = false;
+  const schedulePrint = () => {
+    if (printed) return;
+    try {
+      const doc = w.document;
+      if (!doc || !doc.body) return;
+      if (!doc.body.textContent || doc.body.textContent.trim().length < 30) return;
+      printed = true;
+      w.focus();
+      w.print();
+    } catch (_) {
+      /* user can still use Cmd/Ctrl+P */
+    }
+  };
+  w.addEventListener("load", () => setTimeout(schedulePrint, 250));
+  setTimeout(schedulePrint, 500);
+  setTimeout(schedulePrint, 1200);
+  setTimeout(cleanup, 180000);
 }
 
 function initExport() {
